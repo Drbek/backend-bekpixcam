@@ -1,19 +1,21 @@
 const User = require('../models/userModel');
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken');
-exports.createUser=(req, res, next) => {
-    delete req.body._id;
+exports.createUser = (req, res, next) => {
+  delete req.body._id;
+  
     bcrypt.hash(req.body.password, 10)
-        .then(hash => {
-            req.body.password=hash
-            const user = new User({
-                ...req.body
-            });
-            user.save()
-            .then(() => res.status(201).json({ message: 'User enregistré !'}))
-            .catch(error => res.status(400).json({ error }));
-        })
-    
+      .then(hash => {
+        req.body.password = hash
+        req.body.actif = false
+        const user = new User({
+          ...req.body
+        });
+        user.save()
+          .then(() => res.status(201).json({ message: 'User enregistré !' }))
+          .catch(error => res.status(400).json({ error }));
+      })
+  
 }
 exports.getAllUser=(req, res, next) => {
     User.find()
@@ -46,13 +48,18 @@ exports.login = (req, res, next) => {
             if (!valid) {
               return res.status(401).json({ error: 'Credentials incorrect !' });
             }
+            user_token = jwt.sign(
+              { userId: user._id,role:user.role },
+              'RANDOM_TOKEN_SECRET',
+              { expiresIn: '24h' }
+            )
+            req.body.connexion.user_token=user_token
+            req.body.connexion.date = new Date();
+            user.connexion.push(req.body.connexion)
+            user.save()
             res.status(200).json({
               userId: user._id,
-              token: jwt.sign(
-                { userId: user._id },
-                'RANDOM_TOKEN_SECRET',
-                { expiresIn: '24h' }
-              )
+              token: user_token
             });
           })
           .catch(error => res.status(500).json({ error }));
